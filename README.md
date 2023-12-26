@@ -1,11 +1,53 @@
 # CRISPIM-A-U-Net-based-denoising-technique-for-severely-noisy-3D-SPIM-Light-Sheet-Microscope-images
 
-2023-12-26, Wonjin Cho @ KAIST
+2023-12-26, Wonjin Cho @ KAIST (cerdonis_cho@kaist.ac.kr)
 
-1	PROJECT GOAL AND BACKGROUND
+
+# **1. PROJECT GOAL AND BACKGROUND**
+
 Selective Plane Illumination Microscopy (SPIM), also known as light-sheet microscopy, has become an increasingly important tool in biology [1]. SPIM is a fluorescence optical microscopy technique that employs a planar illumination and an orthogonally oriented detection path [2]. While other common microscopy techniques, such as widefield and confocal microscopy, have inherent disadvantages such as limited sectioning, increased phototoxicity and a slower frame rate, SPIM circumvents these issues by selectively illuminating only the portion of the sample being imaged, enabling high-throughput volumetric imaging of an intact sample with minimal photobleaching [3]. 
 An inevitable issue in digital imaging, including SPIM, is the presence of noise [4]. Noise in digital images is a random variation of brightness or color information, and is usually an aspect of electronic noise. It can be produced by the image sensor and circuitry of a scanner or digital camera. Noise is always present in digital images during the image capture, coding, transmission, and processing stages [5].
 The noise problem in SPIM is more salient than in other microscopy modalities [6], [7]. This is primarily due to the interaction between the excitation sheet and the detection objective point spread function (PSF) of a SPIM [3]. The spatial variation of the PSF is determined by this interaction, leading to spatially varying blur and a combination of Poisson and Gaussian noise. 
 A number of techniques were developed to denoise the microscopy images [8]–[10]. Recent advancements in denoising microscopy images have leveraged various machine learning techniques to improve image quality. For instance, Fuentes-Hurtado et al. proposed a novel framework for few-shot microscopy image denoising that combines generative adversarial networks (GANs) and contrastive learning [9]. Their approach, which was demonstrated on three well-known microscopy imaging datasets, drastically reduces the amount of training data required while retaining the quality of the denoising. Another study by Joucken et al. focused on denoising scanning tunneling microscopy (STM) images [11]. They trained a convolutional neural network on STM images simulated based on a tight-binding electronic structure model. The network was trained on a set of simulated images with varying characteristics such as tip height, sample bias, atomic-scale defects, and non-linear background. Their approach was found to be superior to commonly-used filters in the removal of noise as well as scanning artifacts.
 These studies highlight the potential of machine learning techniques in denoising microscopy images, providing a foundation for further research. However, the denoising methods that targets the SPIM images are yet to be explored. Denoising SPIM images might require a different approach compared to the denoising of other 2D microscopy images, because the 3D image of SPIM is a stack of images along the height, the continuity between the adjacent images in a 3D stack must remain intact. If there is a technique that can correct the noisy image of SPIM while taking the information from the adjacent images in a 3D stack into account, it will increase the quality of information that one can acquire from the images acquired from SPIM. Here, I demonstrate such technique, termed CRISPIM (Convolution-based Resolution Improvement on SPIM images). CRISPIM utilized a U-Net architecture for learning and correcting 3D images acquired through SPIM that are severely noisy (Gaussian noise with standard deviation up to 40).
 By effectively reducing severe noise in 3D SPIM images, CRISPIM enhances the quality of the acquired images, thus will improve the reliability and accuracy of subsequent data analysis. With far-reaching implications for various fields in biology, CRISPIM broadens the applicability of SPIM, making it a more robust tool for imaging under challenging conditions.
+
+# **2. METHODS**
+
+## **2.1	MICE**
+
+8 weeks old male Thy1-M mice (JAX#007788) were purchased from The Jackson Laboratory (ME, USA). All mice used for the experiments were 8-16 weeks old. All animal care and handling were performed in accordance with the directives of the Animal Care and Use Committee of KAIST. The mice were housed in standard conditions (maximum of 5 mice per cage) in a 12-hour light/dark cycle with unrestricted access to food and water. Male 8-20 weeks-old mice were used for all experiments.
+
+## **2.2	SPIM IMAGING**
+
+Mouse brain preservation was carried out based on the previously published SHIELD protocol [12]. The resulting sample was optically cleared using optical clearing solution (OCS), and was mounted in the mounting solution. After the mounting solution was cooled and hardened, the mounted sample was incubated overnight within the light-sheet microscope (LifeCanvas Technologies, SmartSPIM v2, serial number: SS20210716V2 (camera: Hamamatsu C14440-20UP; objective lens: LifeCanvas Instruments LCT3.6MTL (custom lens designed based on Thorlabs TL4X-SAP); filter model: Semrock FF03-525/50, FF01-600/52, FF01-680/42)) reservoir filled with OCS for the complete refractive index matching. Image stacks were acquired through SmartSPIM at the lateral resolution of 1.8μm/px, and the axial resolution of 2μm.The size of each image was 1600px in height and 2000px in width. Primary images were acquired using the acquisition software, SmartSPIM SS Acquisition V3 (LifeCanvas, Cambridge, MA). After the acquisition, images were computationally destriped using Pystripe [13]. For Pystripe, LifeCanvas provided a GUI interface which does not modify the underlying open-source software, but provides a useful interface.
+
+## **2.3	DATA**
+
+For this project, 4 image stacks (Number of images: 2888, 2888, 2408, 2862) were chosen as the training data, and one image stack  (Number of images: 2888) was separately chosen as the test data. For the data preprocessing, an image analysis software, ImageJ 1.53q (NIH, Bethesda, Maryland) (Java 1.8.0_172 64-bit) was used. The chosen stacks were downsampled 4 times, into an image size of 400px in height and 500px in width. After then, each training stack data was added with artificial Gaussian noise of standard deviation of 30 (N=2) or 40 (N=2). For the test stack, the Gaussian noise of a random standard deviation in the range of [30, 40] was added in on-the-fly manner, on Google Colaboratory. The image stacks with added noise served as the input data for the model, while the stacks before adding the noise served as the ground-truth data for training. All the images for the training and testing data were cropped into a size of 256px in height and 256px in width before input to the model.
+
+## **2.4	CRISPIM ON 2D IMAGES**
+
+ As the model to denoise the images, U-Net architecture was chosen. U-Net is a type of convolutional neural network that was originally developed for biomedical image segmentation [14]. The architecture of U-Net is characterized by a contracting path to capture context and a symmetric expanding path that enables precise localization. This unique structure allows U-Net to effectively learn and represent features at various scales, making it particularly effective for tasks such as semantic segmentation.
+U-Net has been found to be particularly useful for image denoising [15]. The ability of U-Net to capture and represent features at different scales allows it to effectively distinguish between noise and actual image features. Moreover, the expansive path of U-Net helps in preserving the details of the image during the denoising process [16]. This makes U-Net a powerful tool for image denoising, capable of improving the quality of images while preserving their important features.
+As a preliminary test on the image denoising through U-Net, a publically available work on the 2D image denoising U-Net model was adopted [17] (https://github.com/jabascal/ResPr-UNet-3D-Denoising-Efficient-Pipeline-TF-keras/blob/main/Train_model_denoising2D.py). The model was built with Keras, while utilizing TensorFlow as the backend.
+ ![2d](https://github.com/Cerdonis/CRISPIM-A-U-Net-based-denoising-technique-for-severely-noisy-3D-SPIM-Light-Sheet-Microscope-images/assets/23471213/3f774a4f-99d7-45e5-9455-98c32ab13c7a)
+
+Figure 1. The architecture of 2D CRISPIM
+ 
+The architecture of the model is shown in Figure 1. This model was trained with random selection of noisy and ground-truth image pairs from the 4 image stacks explained above, through 1000 epochs with batch size of 16 pairs (validation data = 1 pair per epoch). The training took 2 hours and 6 minutes, using V100 GPU of Google Colaboratory Pro.
+
+## **2.5	CONVENTIONAL DENOISING METHODS**
+
+To evaluate the performance of CRISPIM on 2D images, two denoising methods commonly utilized through an importable library on Google Colaboratory was chosen.
+skimage.restoration.denoise_tv_bregman is a tool that performs total variation denoising using split-Bregman optimization [18]. Parameter of weight=0.1 was used.
+cv2.fastNlMeansDenoising is a tool that perform image denoising using Non-local Means Denoising algorithm [19]. Noise of the image processed with this function is expected to be a Gaussian white noise. To use this tool, the images to be denoised were first converted into 8-bit images. Parameters of None, h=10, templateWindowSize=7, searchWindowSize=21 were used.
+2.6	CRISPIM ON 3D IMAGE STACKS
+Based on the U-Net architecture of 2D CRISPM, an original design of 3D CRISPIM architecture was devised to include additional layers with larger filter size, as well as three skip connections. The model was also built with Keras, while utilizing TensorFlow as the backend. 
+ ![3d](https://github.com/Cerdonis/CRISPIM-A-U-Net-based-denoising-technique-for-severely-noisy-3D-SPIM-Light-Sheet-Microscope-images/assets/23471213/4e554de1-3ec9-4119-a887-fd64257630d5)
+
+Figure 2. The architecture of 3D CRISPIM
+
+The architecture of the model is shown in Figure 2. Unlike 2D CRISPIM, 3D CRISPIM takes input of a noisy ‘mini stack’, which is 3D image that consists of 16 adjacent noisy 2D images from the SPIM data, and predicts single 2D image as an output. The mini stack was generated by stacking 8 adjacent images above (lower indices) the target images, the target image itself, and 7 adjacent images below (higher indices). This model was trained with random selection of noisy and ground-truth image pairs from the 4 image stacks explained above, through 8000 epochs with batch size of 4 ‘mini stack – ground truth image’ pairs (validation data = 1 pair per epoch). The combination of T4 and V100 GPU of Google Colaboratory Pro was used for the training.
+
+
